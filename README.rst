@@ -1,1 +1,2 @@
-Maintain and persist shuffled sequences.
+Quick and dirty MRU lists to help you avoid repeating yourself.
+
