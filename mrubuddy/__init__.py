@@ -3,7 +3,7 @@
 Quick and dirty MRU lists to avoid repeating yourself.
 """
 
-import sys, os, os.path, codecs
+import sys, os, os.path, codecs, json
 from collections import deque
 
 MRU_LEN = 48
@@ -20,8 +20,12 @@ class MRU(object):
         self.filename = fn
         self.maxlen = MRU_LEN
 
+    def _todict(self):
+        return { 'length':self.maxlen, 'values':list(self.q) }
+
     def __str__(self):
         return ' '.join(str(i) for i in self.q)
+
     def __unicode__(self):
         return u' '.join((_u(i) for i in self.q))
 
@@ -43,25 +47,22 @@ class MRU(object):
         self.q = deque(self.q, self.maxlen)
 
     def add(self, v):
+        """
+        Add a value to the MRU list without saving. If the list is full, the
+        oldest value is dropped.
+        """
         if v:
             self.q.append(v)
 
     def serialize(self):
-        rv = u'%s%d\n'%(MRULENTAG, self.maxlen)
-        us = u'\n'.join((_u(i) for i in self.q))
-        rv = rv + us + '\n'
-        return rv
+        return json.dumps(self._todict())
 
     def deserialize(self, s):
-        a = s.split('\n')
-        self.maxlen = MRU_LEN
-        if len(a) > 0 and a[0].startswith(MRULENTAG):
-            il = int(a[0][len(MRULENTAG):])
-            if il > 0:
-                self.resize(il)
-            del a[0]
-        for i in a:
-            self.add(i)
+        d = json.loads(s)
+        if 'length' in d:
+            self.resize(d['length'])
+        if 'values' in d:
+            self.q = deque(d['values'], self.maxlen)
 
     def load(self):
         if not self.filename:
@@ -70,8 +71,7 @@ class MRU(object):
             with codecs.open(self.filename, encoding='utf-8') as fp:
                 self.deserialize(fp.read())
         else:
-            with codecs.open(self.filename, 'w', encoding='utf-8') as fp:
-                fp.write('')
+            self.save()
 
     def save(self, newid=None):
         if newid:
